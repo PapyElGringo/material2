@@ -29,6 +29,7 @@ export class InputDemo {
   hideRequiredMarker: boolean;
   ctrlDisabled = false;
   textareaNgModelValue: string;
+  placeholderTestControl = new FormControl('', Validators.required);
 
   name: string;
   errorMessageExample1: string;
@@ -50,6 +51,13 @@ export class InputDemo {
   emailFormControl = new FormControl('', [Validators.required, Validators.pattern(EMAIL_REGEX)]);
   delayedFormControl = new FormControl('');
   model = 'hello';
+  isAutofilled = false;
+  customAutofillStyle = true;
+
+  legacyAppearance: string;
+  standardAppearance: string;
+  fillAppearance: string;
+  outlineAppearance: string;
 
   constructor() {
     setTimeout(() => this.delayedFormControl.setValue('hello'), 100);
@@ -73,4 +81,14 @@ export class InputDemo {
       return false;
     }
   };
+
+  togglePlaceholderTestValue() {
+    this.placeholderTestControl.setValue(this.placeholderTestControl.value === '' ? 'Value' : '');
+  }
+
+  togglePlaceholderTestTouched() {
+    this.placeholderTestControl.touched ?
+      this.placeholderTestControl.markAsUntouched() :
+      this.placeholderTestControl.markAsTouched();
+  }
 }

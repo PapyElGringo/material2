@@ -15,7 +15,6 @@ import {Observable} from 'rxjs/Observable';
   templateUrl: 'tabs-demo.html',
   styleUrls: ['tabs-demo.css'],
   encapsulation: ViewEncapsulation.None,
-  preserveWhitespaces: false,
 })
 export class TabsDemo {
   // Nav bar demo
@@ -133,3 +132,14 @@ export class RainyTabContent {}
   template: 'This is the routed body of the foggy tab.',
 })
 export class FoggyTabContent {}
+
+@Component({
+  moduleId: module.id,
+  selector: 'counter',
+  template: `<span>Content</span>`
+ })
+ export class Counter {
+  ngOnInit() {
+    console.log('Tab Loaded');
+  }
+ }

@@ -26,7 +26,6 @@ import {
 } from '@angular/core';
 import {ControlValueAccessor, NG_VALUE_ACCESSOR} from '@angular/forms';
 import {
-  applyCssTransform,
   CanColor,
   CanDisable,
   CanDisableRipple,
@@ -51,8 +50,11 @@ export const MAT_SLIDE_TOGGLE_VALUE_ACCESSOR: any = {
 
 /** Change event object emitted by a MatSlideToggle. */
 export class MatSlideToggleChange {
-  source: MatSlideToggle;
-  checked: boolean;
+  constructor(
+    /** The source MatSlideToggle of the event. */
+    public source: MatSlideToggle,
+    /** The new `checked` value of the MatSlideToggle. */
+    public checked: boolean) { }
 }
 
 // Boilerplate for applying mixins to MatSlideToggle.
@@ -80,7 +82,6 @@ export const _MatSlideToggleMixinBase =
   providers: [MAT_SLIDE_TOGGLE_VALUE_ACCESSOR],
   inputs: ['disabled', 'disableRipple', 'color', 'tabIndex'],
   encapsulation: ViewEncapsulation.None,
-  preserveWhitespaces: false,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MatSlideToggle extends _MatSlideToggleMixinBase implements OnDestroy, AfterContentInit,
@@ -127,7 +128,8 @@ export class MatSlideToggle extends _MatSlideToggleMixinBase implements OnDestro
     this._changeDetectorRef.markForCheck();
   }
   /** An event will be dispatched each time the slide-toggle changes its value. */
-  @Output() change: EventEmitter<MatSlideToggleChange> = new EventEmitter<MatSlideToggleChange>();
+  @Output() readonly change: EventEmitter<MatSlideToggleChange> =
+      new EventEmitter<MatSlideToggleChange>();
 
   /** Returns the unique id for the visual hidden input. */
   get inputId(): string { return `${this.id || this._uniqueId}-input`; }
@@ -152,7 +154,7 @@ export class MatSlideToggle extends _MatSlideToggleMixinBase implements OnDestro
     this._slideRenderer = new SlideToggleRenderer(this._elementRef, this._platform);
 
     this._focusMonitor
-      .monitor(this._inputElement.nativeElement, false)
+      .monitor(this._inputElement.nativeElement)
       .subscribe(focusOrigin => this._onInputFocusChange(focusOrigin));
   }
 
@@ -217,20 +219,21 @@ export class MatSlideToggle extends _MatSlideToggleMixinBase implements OnDestro
   }
 
   /** Focuses the slide-toggle. */
-  focus() {
+  focus(): void {
     this._focusMonitor.focusVia(this._inputElement.nativeElement, 'keyboard');
   }
 
   /** Toggles the checked state of the slide-toggle. */
-  toggle() {
+  toggle(): void {
     this.checked = !this.checked;
   }
 
   /** Function is called whenever the focus changes for the input element. */
   private _onInputFocusChange(focusOrigin: FocusOrigin) {
+    // TODO(paul): support `program`. See https://github.com/angular/material2/issues/9889
     if (!this._focusRipple && focusOrigin === 'keyboard') {
       // For keyboard focus show a persistent ripple as focus indicator.
-      this._focusRipple = this._ripple.launch(0, 0, {persistent: true, centered: true});
+      this._focusRipple = this._ripple.launch(0, 0, {persistent: true});
     } else if (!focusOrigin) {
       this.onTouched();
 
@@ -246,11 +249,8 @@ export class MatSlideToggle extends _MatSlideToggleMixinBase implements OnDestro
    * Emits a change event on the `change` output. Also notifies the FormControl about the change.
    */
   private _emitChangeEvent() {
-    let event = new MatSlideToggleChange();
-    event.source = this;
-    event.checked = this.checked;
     this.onChange(this.checked);
-    this.change.emit(event);
+    this.change.emit(new MatSlideToggleChange(this, this.checked));
   }
 
   _onDragStart() {
@@ -322,7 +322,7 @@ class SlideToggleRenderer {
   }
 
   /** Initializes the drag of the slide-toggle. */
-  startThumbDrag(checked: boolean) {
+  startThumbDrag(checked: boolean): void {
     if (this.dragging) { return; }
 
     this._thumbBarWidth = this._thumbBarEl.clientWidth - this._thumbEl.clientWidth;
@@ -340,17 +340,17 @@ class SlideToggleRenderer {
     this._thumbEl.classList.remove('mat-dragging');
 
     // Reset the transform because the component will take care of the thumb position after drag.
-    applyCssTransform(this._thumbEl, '');
+    this._thumbEl.style.transform = '';
 
     return this.dragPercentage > 50;
   }
 
   /** Updates the thumb containers position from the specified distance. */
-  updateThumbPosition(distance: number) {
+  updateThumbPosition(distance: number): void {
     this.dragPercentage = this._getDragPercentage(distance);
     // Calculate the moved distance based on the thumb bar width.
-    let dragX = (this.dragPercentage / 100) * this._thumbBarWidth;
-    applyCssTransform(this._thumbEl, `translate3d(${dragX}px, 0, 0)`);
+    const dragX = (this.dragPercentage / 100) * this._thumbBarWidth;
+    this._thumbEl.style.transform = `translate3d(${dragX}px, 0, 0)`;
   }
 
   /** Retrieves the percentage of thumb from the moved distance. Percentage as fraction of 100. */

@@ -9,9 +9,6 @@
 import {ChangeDetectionStrategy, Component, ViewEncapsulation} from '@angular/core';
 import {CDK_TABLE_TEMPLATE, CdkTable} from '@angular/cdk/table';
 
-/** Workaround for https://github.com/angular/angular/issues/17849 */
-export const _MatTable = CdkTable;
-
 /**
  * Wrapper for the CdkTable with Material design styles.
  */
@@ -25,7 +22,6 @@ export const _MatTable = CdkTable;
     'class': 'mat-table',
   },
   encapsulation: ViewEncapsulation.None,
-  preserveWhitespaces: false,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MatTable<T> extends _MatTable<T> { }
+export class MatTable<T> extends CdkTable<T> { }

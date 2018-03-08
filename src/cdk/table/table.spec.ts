@@ -1,19 +1,21 @@
 import {async, ComponentFixture, TestBed} from '@angular/core/testing';
-import {Component, ViewChild} from '@angular/core';
+import {Component, ContentChild, ContentChildren, Input, QueryList, ViewChild} from '@angular/core';
 import {CdkTable} from './table';
 import {CollectionViewer, DataSource} from '@angular/cdk/collections';
 import {BehaviorSubject} from 'rxjs/BehaviorSubject';
 import {combineLatest} from 'rxjs/observable/combineLatest';
 import {CdkTableModule} from './index';
 import {Observable} from 'rxjs/Observable';
-import {map} from 'rxjs/operators/map';
 import {
   getTableDuplicateColumnNameError,
   getTableMissingMatchingRowDefError,
   getTableMissingRowDefsError,
   getTableMultipleDefaultRowDefsError,
-  getTableUnknownColumnError
+  getTableUnknownColumnError,
+  getTableUnknownDataSourceError
 } from './table-errors';
+import {CdkHeaderRowDef, CdkRowDef} from './row';
+import {CdkColumnDef} from './cell';
 
 describe('CdkTable', () => {
   let fixture: ComponentFixture<SimpleCdkTableApp>;
@@ -41,7 +43,10 @@ describe('CdkTable', () => {
         WhenRowWithoutDefaultCdkTableApp,
         WhenRowMultipleDefaultsCdkTableApp,
         MissingRowDefsCdkTableApp,
-        BooleanRowCdkTableApp
+        BooleanRowCdkTableApp,
+        WrapperCdkTableApp,
+        OuterTableApp,
+        CdkTableWithDifferentDataInputsApp,
       ],
     }).compileComponents();
   }));
@@ -107,6 +112,138 @@ describe('CdkTable', () => {
           expect(cell.getAttribute('role')).toBe('gridcell');
         });
       });
+    });
+  });
+
+  describe('with different data inputs other than data source', () => {
+    let dataInputFixture: ComponentFixture<CdkTableWithDifferentDataInputsApp>;
+    let dataInputComponent: CdkTableWithDifferentDataInputsApp;
+    let dataInputTableElement: HTMLElement;
+
+    let baseData: TestData[] = [
+      {a: 'a_1', b: 'b_1', c: 'c_1'},
+      {a: 'a_2', b: 'b_2', c: 'c_2'},
+      {a: 'a_3', b: 'b_3', c: 'c_3'},
+    ];
+
+    beforeEach(() => {
+      dataInputFixture = TestBed.createComponent(CdkTableWithDifferentDataInputsApp);
+      dataInputComponent = dataInputFixture.componentInstance;
+      dataInputFixture.detectChanges();
+
+      dataInputTableElement = dataInputFixture.nativeElement.querySelector('cdk-table');
+    });
+
+    it('should render with data array input', () => {
+      const data = baseData.slice();
+      dataInputComponent.dataSource = data;
+      dataInputFixture.detectChanges();
+
+      const expectedRender = [
+        ['Column A', 'Column B', 'Column C'],
+        ['a_1', 'b_1', 'c_1'],
+        ['a_2', 'b_2', 'c_2'],
+        ['a_3', 'b_3', 'c_3'],
+      ];
+      expectTableToMatchContent(dataInputTableElement, expectedRender);
+
+      // Push data to the array but neglect to tell the table, should be no change
+      data.push({a: 'a_4', b: 'b_4', c: 'c_4'});
+
+      expectTableToMatchContent(dataInputTableElement, expectedRender);
+
+      // Notify table of the change, expect another row
+      dataInputComponent.table.renderRows();
+      dataInputFixture.detectChanges();
+
+      expectedRender.push(['a_4', 'b_4', 'c_4']);
+      expectTableToMatchContent(dataInputTableElement, expectedRender);
+
+      // Remove a row and expect the change in rows
+      data.pop();
+      dataInputComponent.table.renderRows();
+
+      expectedRender.pop();
+      expectTableToMatchContent(dataInputTableElement, expectedRender);
+
+      // Remove the data input entirely and expect no rows - just header.
+      dataInputComponent.dataSource = null;
+      dataInputFixture.detectChanges();
+
+      expectTableToMatchContent(dataInputTableElement, [expectedRender[0]]);
+
+      // Add back the data to verify that it renders rows
+      dataInputComponent.dataSource = data;
+      dataInputFixture.detectChanges();
+
+      expectTableToMatchContent(dataInputTableElement, expectedRender);
+    });
+
+    it('should render with data stream input', () => {
+      const data = baseData.slice();
+      const stream = new BehaviorSubject<TestData[]>(data);
+      dataInputComponent.dataSource = stream;
+      dataInputFixture.detectChanges();
+
+      const expectedRender = [
+        ['Column A', 'Column B', 'Column C'],
+        ['a_1', 'b_1', 'c_1'],
+        ['a_2', 'b_2', 'c_2'],
+        ['a_3', 'b_3', 'c_3'],
+      ];
+      expectTableToMatchContent(dataInputTableElement, expectedRender);
+
+      // Push data to the array and emit the data array on the stream
+      data.push({a: 'a_4', b: 'b_4', c: 'c_4'});
+      stream.next(data);
+      dataInputFixture.detectChanges();
+
+      expectedRender.push(['a_4', 'b_4', 'c_4']);
+      expectTableToMatchContent(dataInputTableElement, expectedRender);
+
+      // Push data to the array but rather than emitting, call renderRows.
+      data.push({a: 'a_5', b: 'b_5', c: 'c_5'});
+      dataInputComponent.table.renderRows();
+      dataInputFixture.detectChanges();
+
+      expectedRender.push(['a_5', 'b_5', 'c_5']);
+      expectTableToMatchContent(dataInputTableElement, expectedRender);
+
+      // Remove a row and expect the change in rows
+      data.pop();
+      expectedRender.pop();
+      stream.next(data);
+
+      expectTableToMatchContent(dataInputTableElement, expectedRender);
+
+      // Remove the data input entirely and expect no rows - just header.
+      dataInputComponent.dataSource = null;
+      dataInputFixture.detectChanges();
+
+      expectTableToMatchContent(dataInputTableElement, [expectedRender[0]]);
+
+      // Add back the data to verify that it renders rows
+      dataInputComponent.dataSource = stream;
+      dataInputFixture.detectChanges();
+
+      expectTableToMatchContent(dataInputTableElement, expectedRender);
+    });
+
+    it('should throw an error if the data source is not valid', () => {
+      dataInputComponent.dataSource = {invalid: 'dataSource'};
+
+      expect(() => dataInputFixture.detectChanges())
+          .toThrowError(getTableUnknownDataSourceError().message);
+    });
+
+    it('should throw an error if the data source is not valid', () => {
+      dataInputComponent.dataSource = undefined;
+      dataInputFixture.detectChanges();
+
+      // Expect the table to render just the header, no rows
+      expectTableToMatchContent(dataInputTableElement, [
+        ['Column A', 'Column B', 'Column C']
+      ]);
     });
   });
 
@@ -183,7 +320,6 @@ describe('CdkTable', () => {
   it('should be able to dynamically add/remove column definitions', () => {
     const dynamicColumnDefFixture = TestBed.createComponent(DynamicColumnDefinitionsCdkTableApp);
     dynamicColumnDefFixture.detectChanges();
-    dynamicColumnDefFixture.detectChanges();
 
     const dynamicColumnDefTable = dynamicColumnDefFixture.nativeElement.querySelector('cdk-table');
     const dynamicColumnDefComp = dynamicColumnDefFixture.componentInstance;
@@ -231,6 +367,22 @@ describe('CdkTable', () => {
     getRows(tableElement).forEach(row => {
       expect(getCells(row).length).toBe(component.columnsToRender.length);
     });
+  });
+
+  it('should be able to register column, row, and header row definitions outside content', () => {
+    const outerTableAppFixture = TestBed.createComponent(OuterTableApp);
+    outerTableAppFixture.detectChanges();
+
+    // The first two columns were defined in the wrapped table component as content children,
+    // while the injected columns were provided to the wrapped table from the outer component.
+    // A special row was provided with a when predicate that shows the single column with text.
+    // The header row was defined by the outer component.
+    expectTableToMatchContent(outerTableAppFixture.nativeElement.querySelector('cdk-table'), [
+      ['Content Column A', 'Content Column B', 'Injected Column A', 'Injected Column B'],
+      ['injected row with when predicate'],
+      ['a_2', 'b_2', 'a_2', 'b_2'],
+      ['a_3', 'b_3', 'a_3', 'b_3']
+    ]);
   });
 
   describe('using when predicate', () => {
@@ -627,9 +779,9 @@ interface TestData {
 class FakeDataSource extends DataSource<TestData> {
   isConnected = false;
 
-  _dataChange = new BehaviorSubject<TestData[]>([]);
-  set data(data: TestData[]) { this._dataChange.next(data); }
   get data() { return this._dataChange.getValue(); }
+  set data(data: TestData[]) { this._dataChange.next(data); }
+  _dataChange = new BehaviorSubject<TestData[]>([]);
 
   constructor() {
     super();
@@ -639,7 +791,7 @@ class FakeDataSource extends DataSource<TestData> {
   connect(collectionViewer: CollectionViewer) {
     this.isConnected = true;
     const streams = [this._dataChange, collectionViewer.viewChange];
-    return combineLatest<TestData[]>(streams).pipe(map(([data]) => data));
+    return combineLatest(streams, (data, _) => data);
   }
 
   disconnect() {
@@ -697,6 +849,36 @@ class BooleanDataSource extends DataSource<boolean> {
 })
 class SimpleCdkTableApp {
   dataSource: FakeDataSource | undefined = new FakeDataSource();
+  columnsToRender = ['column_a', 'column_b', 'column_c'];
+
+  @ViewChild(CdkTable) table: CdkTable<TestData>;
+}
+
+@Component({
+  template: `
+    <cdk-table [dataSource]="dataSource">
+      <ng-container cdkColumnDef="column_a">
+        <cdk-header-cell *cdkHeaderCellDef> Column A</cdk-header-cell>
+        <cdk-cell *cdkCellDef="let row"> {{row.a}}</cdk-cell>
+      </ng-container>
+
+      <ng-container cdkColumnDef="column_b">
+        <cdk-header-cell *cdkHeaderCellDef> Column B</cdk-header-cell>
+        <cdk-cell *cdkCellDef="let row"> {{row.b}}</cdk-cell>
+      </ng-container>
+
+      <ng-container cdkColumnDef="column_c">
+        <cdk-header-cell *cdkHeaderCellDef> Column C</cdk-header-cell>
+        <cdk-cell *cdkCellDef="let row"> {{row.c}}</cdk-cell>
+      </ng-container>
+
+      <cdk-header-row *cdkHeaderRowDef="columnsToRender"></cdk-header-row>
+      <cdk-row *cdkRowDef="let row; columns: columnsToRender"></cdk-row>
+    </cdk-table>
+  `
+})
+class CdkTableWithDifferentDataInputsApp {
+  dataSource: DataSource<TestData> | Observable<TestData[]> | TestData[] | any = null;
   columnsToRender = ['column_a', 'column_b', 'column_c'];
 
   @ViewChild(CdkTable) table: CdkTable<TestData>;
@@ -1073,6 +1255,72 @@ class RowContextCdkTableApp {
   enableCellContextClasses = false;
 }
 
+@Component({
+  selector: 'wrapper-table',
+  template: `
+    <cdk-table [dataSource]="dataSource">
+      <ng-container cdkColumnDef="content_column_a">
+        <cdk-header-cell *cdkHeaderCellDef> Content Column A </cdk-header-cell>
+        <cdk-cell *cdkCellDef="let row"> {{row.a}} </cdk-cell>
+      </ng-container>
+      <ng-container cdkColumnDef="content_column_b">
+        <cdk-header-cell *cdkHeaderCellDef> Content Column B </cdk-header-cell>
+        <cdk-cell *cdkCellDef="let row"> {{row.b}} </cdk-cell>
+      </ng-container>
+
+      <cdk-row *cdkRowDef="let row; columns: columns"></cdk-row>
+    </cdk-table>
+  `
+})
+class WrapperCdkTableApp<T> {
+  @ContentChildren(CdkColumnDef) columnDefs: QueryList<CdkColumnDef>;
+  @ContentChild(CdkHeaderRowDef) headerRowDef: CdkHeaderRowDef;
+  @ContentChildren(CdkRowDef) rowDefs: QueryList<CdkRowDef<T>>;
+
+  @ViewChild(CdkTable) table: CdkTable<T>;
+
+  @Input() columns: string[];
+  @Input() dataSource: DataSource<T>;
+
+  ngAfterContentInit() {
+    // Register the content's column, row, and header row definitions.
+    this.columnDefs.forEach(columnDef => this.table.addColumnDef(columnDef));
+    this.rowDefs.forEach(rowDef => this.table.addRowDef(rowDef));
+    this.table.setHeaderRowDef(this.headerRowDef);
+  }
+}
+
+@Component({
+  template: `
+    <wrapper-table [dataSource]="dataSource" [columns]="columnsToRender">
+      <ng-container cdkColumnDef="injected_column_a">
+        <cdk-header-cell *cdkHeaderCellDef> Injected Column A </cdk-header-cell>
+        <cdk-cell *cdkCellDef="let row"> {{row.a}} </cdk-cell>
+      </ng-container>
+      <ng-container cdkColumnDef="injected_column_b">
+        <cdk-header-cell *cdkHeaderCellDef> Injected Column B </cdk-header-cell>
+        <cdk-cell *cdkCellDef="let row"> {{row.b}} </cdk-cell>
+      </ng-container>
+
+      <!-- Only used for the 'when' row, the first row -->
+      <ng-container cdkColumnDef="special_column">
+        <cdk-cell *cdkCellDef="let row"> injected row with when predicate </cdk-cell>
+      </ng-container>
+
+      <cdk-header-row *cdkHeaderRowDef="columnsToRender"></cdk-header-row>
+      <cdk-row class="first-row" *cdkRowDef="let row; columns: ['special_column']; when: firstRow">
+      </cdk-row>
+    </wrapper-table>
+  `
+})
+class OuterTableApp {
+  dataSource: FakeDataSource = new FakeDataSource();
+  columnsToRender =
+      ['content_column_a', 'content_column_b', 'injected_column_a', 'injected_column_b'];
+
+  firstRow = i => i === 0;
+}
+
 function getElements(element: Element, query: string): Element[] {
   return [].slice.call(element.querySelectorAll(query));
 }
@@ -1102,6 +1350,9 @@ function expectTableToMatchContent(tableElement: Element, expectedTableContent: 
     }
   }
 
+  // Copy the expected data array to avoid mutating the test's array
+  expectedTableContent = expectedTableContent.slice();
+
   // Check header cells
   const expectedHeaderContent = expectedTableContent.shift();
   getHeaderCells(tableElement).forEach((cell, index) => {
@@ -1112,7 +1363,13 @@ function expectTableToMatchContent(tableElement: Element, expectedTableContent: 
   });
 
   // Check data row cells
-  getRows(tableElement).forEach((row, rowIndex) => {
+  const rows = getRows(tableElement);
+  if (rows.length !== expectedTableContent.length) {
+    missedExpectations.push(
+        `Expected ${expectedTableContent.length} rows but found ${rows.length}`);
+    fail(missedExpectations.join('\n'));
+  }
+  rows.forEach((row, rowIndex) => {
     getCells(row).forEach((cell, cellIndex) => {
       const expected = expectedTableContent.length ?
           expectedTableContent[rowIndex][cellIndex] :

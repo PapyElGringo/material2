@@ -23,7 +23,6 @@ export class AccessibilityHome {}
   templateUrl: 'a11y.html',
   styleUrls: ['a11y.css'],
   encapsulation: ViewEncapsulation.None,
-  preserveWhitespaces: false,
 })
 export class AccessibilityDemo implements OnDestroy {
   currentComponent: string = '';
@@ -49,6 +48,7 @@ export class AccessibilityDemo implements OnDestroy {
     {name: 'Grid list', route: 'grid-list'},
     {name: 'Icon', route: 'icon'},
     {name: 'Input', route: 'input'},
+    {name: 'List', route: 'list'},
     {name: 'Menu', route: 'menu'},
     {name: 'Progress bar', route: 'progress-bar'},
     {name: 'Progress spinner', route: 'progress-spinner'},

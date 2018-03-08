@@ -12,7 +12,7 @@ import {
 } from '@angular/cdk/keycodes';
 import {dispatchFakeEvent, dispatchKeyboardEvent, dispatchMouseEvent} from '@angular/cdk/testing';
 import {Component, DebugElement, ViewChild} from '@angular/core';
-import {async, ComponentFixture, TestBed} from '@angular/core/testing';
+import {async, ComponentFixture, TestBed, fakeAsync, flush} from '@angular/core/testing';
 import {FormControl, FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {By, HAMMER_GESTURE_CONFIG} from '@angular/platform-browser';
 import {MatSlider, MatSliderModule} from './index';
@@ -42,6 +42,7 @@ describe('MatSlider without forms', () => {
         SliderWithTabIndexBinding,
         SliderWithNativeTabindexAttr,
         VerticalSlider,
+        SliderWithCustomThumbLabelFormatting,
       ],
       providers: [
         {provide: HAMMER_GESTURE_CONFIG, useFactory: () => {
@@ -60,7 +61,6 @@ describe('MatSlider without forms', () => {
     let sliderNativeElement: HTMLElement;
     let sliderInstance: MatSlider;
     let trackFillElement: HTMLElement;
-    let sliderWrapperElement: HTMLElement;
 
     beforeEach(() => {
       fixture = TestBed.createComponent(StandardSlider);
@@ -71,7 +71,6 @@ describe('MatSlider without forms', () => {
       sliderInstance = sliderDebugElement.componentInstance;
 
       trackFillElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-track-fill');
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
     });
 
     it('should set the default values', () => {
@@ -214,7 +213,6 @@ describe('MatSlider without forms', () => {
     let fixture: ComponentFixture<StandardSlider>;
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
-    let sliderWrapperElement: HTMLElement;
     let sliderInstance: MatSlider;
     let trackFillElement: HTMLElement;
 
@@ -224,7 +222,6 @@ describe('MatSlider without forms', () => {
 
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
       sliderInstance = sliderDebugElement.componentInstance;
       trackFillElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-track-fill');
     });
@@ -247,6 +244,15 @@ describe('MatSlider without forms', () => {
       dispatchSlideEventSequence(sliderNativeElement, 0, 0.5, gestureConfig);
 
       expect(sliderInstance.value).toBe(0);
+    });
+
+    it('should not emit change when disabled', () => {
+      const onChangeSpy = jasmine.createSpy('slider onChange');
+      sliderInstance.change.subscribe(onChangeSpy);
+
+      dispatchSlideEventSequence(sliderNativeElement, 0, 0.5, gestureConfig);
+
+      expect(onChangeSpy).toHaveBeenCalledTimes(0);
     });
 
     it('should not add the mat-slider-active class on click when disabled', () => {
@@ -281,7 +287,6 @@ describe('MatSlider without forms', () => {
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
     let sliderInstance: MatSlider;
-    let sliderWrapperElement: HTMLElement;
     let trackFillElement: HTMLElement;
     let ticksContainerElement: HTMLElement;
     let ticksElement: HTMLElement;
@@ -295,7 +300,6 @@ describe('MatSlider without forms', () => {
       testComponent = fixture.debugElement.componentInstance;
       sliderNativeElement = sliderDebugElement.nativeElement;
       sliderInstance = sliderDebugElement.injector.get<MatSlider>(MatSlider);
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
       trackFillElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-track-fill');
       ticksContainerElement =
           <HTMLElement>sliderNativeElement.querySelector('.mat-slider-ticks-container');
@@ -381,7 +385,6 @@ describe('MatSlider without forms', () => {
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
     let sliderInstance: MatSlider;
-    let sliderWrapperElement: HTMLElement;
 
     beforeEach(() => {
       fixture = TestBed.createComponent(SliderWithValue);
@@ -390,7 +393,6 @@ describe('MatSlider without forms', () => {
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
       sliderInstance = sliderDebugElement.injector.get<MatSlider>(MatSlider);
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
     });
 
     it('should set the default value from the attribute', () => {
@@ -419,7 +421,6 @@ describe('MatSlider without forms', () => {
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
     let sliderInstance: MatSlider;
-    let sliderWrapperElement: HTMLElement;
     let trackFillElement: HTMLElement;
 
     beforeEach(() => {
@@ -429,7 +430,6 @@ describe('MatSlider without forms', () => {
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
       sliderInstance = sliderDebugElement.injector.get<MatSlider>(MatSlider);
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
       trackFillElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-track-fill');
     });
 
@@ -566,7 +566,6 @@ describe('MatSlider without forms', () => {
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
     let sliderInstance: MatSlider;
-    let sliderWrapperElement: HTMLElement;
     let thumbLabelTextElement: Element;
 
     beforeEach(() => {
@@ -576,7 +575,6 @@ describe('MatSlider without forms', () => {
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
       sliderInstance = sliderDebugElement.componentInstance;
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
       thumbLabelTextElement = sliderNativeElement.querySelector('.mat-slider-thumb-label-text')!;
     });
 
@@ -605,12 +603,43 @@ describe('MatSlider without forms', () => {
     });
   });
 
+  describe('slider with custom thumb label formatting', () => {
+    let fixture: ComponentFixture<SliderWithCustomThumbLabelFormatting>;
+    let sliderInstance: MatSlider;
+    let thumbLabelTextElement: Element;
+
+    beforeEach(() => {
+      fixture = TestBed.createComponent(SliderWithCustomThumbLabelFormatting);
+      fixture.detectChanges();
+
+      const sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
+      const sliderNativeElement = sliderDebugElement.nativeElement;
+      sliderInstance = sliderDebugElement.componentInstance;
+      thumbLabelTextElement = sliderNativeElement.querySelector('.mat-slider-thumb-label-text')!;
+    });
+
+    it('should invoke the passed-in `displayWith` function with the value', () => {
+      spyOn(fixture.componentInstance, 'displayWith').and.callThrough();
+
+      sliderInstance.value = 1337;
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.displayWith).toHaveBeenCalledWith(1337);
+    });
+
+    it('should format the thumb label based on the passed-in `displayWith` function', () => {
+      sliderInstance.value = 200000;
+      fixture.detectChanges();
+
+      expect(thumbLabelTextElement.textContent).toBe('200k');
+    });
+  });
+
   describe('slider with value property binding', () => {
     let fixture: ComponentFixture<SliderWithOneWayBinding>;
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
     let sliderInstance: MatSlider;
-    let sliderWrapperElement: HTMLElement;
     let testComponent: SliderWithOneWayBinding;
     let trackFillElement: HTMLElement;
 
@@ -623,7 +652,6 @@ describe('MatSlider without forms', () => {
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
       sliderInstance = sliderDebugElement.injector.get<MatSlider>(MatSlider);
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
       trackFillElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-track-fill');
     });
 
@@ -646,7 +674,6 @@ describe('MatSlider without forms', () => {
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
     let sliderInstance: MatSlider;
-    let sliderWrapperElement: HTMLElement;
     let trackFillElement: HTMLElement;
 
     beforeEach(() => {
@@ -656,7 +683,6 @@ describe('MatSlider without forms', () => {
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
       sliderInstance = sliderDebugElement.componentInstance;
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
       trackFillElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-track-fill');
     });
 
@@ -676,7 +702,6 @@ describe('MatSlider without forms', () => {
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
     let sliderInstance: MatSlider;
-    let sliderWrapperElement: HTMLElement;
     let trackFillElement: HTMLElement;
 
     beforeEach(() => {
@@ -686,7 +711,6 @@ describe('MatSlider without forms', () => {
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
       sliderInstance = sliderDebugElement.componentInstance;
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
       trackFillElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-track-fill');
     });
 
@@ -705,7 +729,6 @@ describe('MatSlider without forms', () => {
     let fixture: ComponentFixture<SliderWithChangeHandler>;
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
-    let sliderWrapperElement: HTMLElement;
     let testComponent: SliderWithChangeHandler;
 
     beforeEach(() => {
@@ -718,7 +741,6 @@ describe('MatSlider without forms', () => {
 
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
     });
 
     it('should emit change on click', () => {
@@ -778,7 +800,6 @@ describe('MatSlider without forms', () => {
     let fixture: ComponentFixture<SliderWithChangeHandler>;
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
-    let sliderWrapperElement: HTMLElement;
     let testComponent: SliderWithChangeHandler;
 
     beforeEach(() => {
@@ -791,7 +812,6 @@ describe('MatSlider without forms', () => {
 
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
     });
 
     it('should emit an input event while sliding', () => {
@@ -827,7 +847,6 @@ describe('MatSlider without forms', () => {
     let fixture: ComponentFixture<SliderWithChangeHandler>;
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
-    let sliderWrapperElement: HTMLElement;
     let testComponent: SliderWithChangeHandler;
     let sliderInstance: MatSlider;
 
@@ -841,7 +860,6 @@ describe('MatSlider without forms', () => {
 
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
       sliderInstance = sliderDebugElement.injector.get<MatSlider>(MatSlider);
     });
 
@@ -968,7 +986,6 @@ describe('MatSlider without forms', () => {
     let fixture: ComponentFixture<SliderWithDirAndInvert>;
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
-    let sliderWrapperElement: HTMLElement;
     let sliderInstance: MatSlider;
     let testComponent: SliderWithDirAndInvert;
 
@@ -980,7 +997,6 @@ describe('MatSlider without forms', () => {
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderInstance = sliderDebugElement.injector.get<MatSlider>(MatSlider);
       sliderNativeElement = sliderDebugElement.nativeElement;
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
     });
 
     it('works in inverted mode', () => {
@@ -1110,7 +1126,6 @@ describe('MatSlider without forms', () => {
     let fixture: ComponentFixture<VerticalSlider>;
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
-    let sliderWrapperElement: HTMLElement;
     let trackFillElement: HTMLElement;
     let sliderInstance: MatSlider;
     let testComponent: VerticalSlider;
@@ -1123,7 +1138,6 @@ describe('MatSlider without forms', () => {
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderInstance = sliderDebugElement.injector.get<MatSlider>(MatSlider);
       sliderNativeElement = sliderDebugElement.nativeElement;
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
       trackFillElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-track-fill');
     });
 
@@ -1223,8 +1237,6 @@ describe('MatSlider with forms module', () => {
     let fixture: ComponentFixture<SliderWithNgModel>;
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
-    let sliderInstance: MatSlider;
-    let sliderWrapperElement: HTMLElement;
     let testComponent: SliderWithNgModel;
 
     beforeEach(() => {
@@ -1235,8 +1247,6 @@ describe('MatSlider with forms module', () => {
 
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
-      sliderInstance = sliderDebugElement.injector.get<MatSlider>(MatSlider);
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
     });
 
     it('should update the model on click', () => {
@@ -1265,6 +1275,23 @@ describe('MatSlider with forms module', () => {
 
       expect(testComponent.val).toBe(1);
     });
+
+    it('should be able to reset a slider by setting the model back to undefined', fakeAsync(() => {
+      expect(testComponent.slider.value).toBe(0);
+
+      testComponent.val = 5;
+      fixture.detectChanges();
+      flush();
+
+      expect(testComponent.slider.value).toBe(5);
+
+      testComponent.val = undefined;
+      fixture.detectChanges();
+      flush();
+
+      expect(testComponent.slider.value).toBe(0);
+    }));
+
   });
 
   describe('slider as a custom form control', () => {
@@ -1272,7 +1299,6 @@ describe('MatSlider with forms module', () => {
     let sliderDebugElement: DebugElement;
     let sliderNativeElement: HTMLElement;
     let sliderInstance: MatSlider;
-    let sliderWrapperElement: HTMLElement;
     let testComponent: SliderWithFormControl;
 
     beforeEach(() => {
@@ -1284,7 +1310,6 @@ describe('MatSlider with forms module', () => {
       sliderDebugElement = fixture.debugElement.query(By.directive(MatSlider));
       sliderNativeElement = sliderDebugElement.nativeElement;
       sliderInstance = sliderDebugElement.injector.get<MatSlider>(MatSlider);
-      sliderWrapperElement = <HTMLElement>sliderNativeElement.querySelector('.mat-slider-wrapper');
     });
 
     it('should not update the control when the value is updated', () => {
@@ -1434,6 +1459,26 @@ class SliderWithSetTickInterval {
 })
 class SliderWithThumbLabel { }
 
+
+@Component({
+  template: `<mat-slider min="1" max="100000" [displayWith]="displayWith" thumbLabel></mat-slider>`,
+  styles: [styles],
+})
+class SliderWithCustomThumbLabelFormatting {
+  displayWith(value: number | null) {
+    if (!value) {
+      return 0;
+    }
+
+    if (value >= 1000) {
+      return (value / 1000) + 'k';
+    }
+
+    return value;
+  }
+}
+
+
 @Component({
   template: `<mat-slider [value]="val"></mat-slider>`,
   styles: [styles],
@@ -1455,7 +1500,8 @@ class SliderWithFormControl {
   styles: [styles],
 })
 class SliderWithNgModel {
-  val = 0;
+  @ViewChild(MatSlider) slider: MatSlider;
+  val: number | undefined = 0;
 }
 
 @Component({

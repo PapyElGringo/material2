@@ -5,7 +5,7 @@
  * Target can be either: BS (Browserstack) | SL (Saucelabs) | TC (Travis CI) | null (To not run)
  */
 const browserConfig = {
-  'ChromeHeadless_CI': { unitTest: {target: 'TC', required: true  }},
+  'ChromeHeadlessCI':  { unitTest: {target: 'TC', required: true  }},
   'FirefoxHeadless':   { unitTest: {target: 'TC', required: true  }},
   'ChromeBeta':        { unitTest: {target: null, required: false }},
   'FirefoxBeta':       { unitTest: {target: null, required: false }},
@@ -13,7 +13,7 @@ const browserConfig = {
   'FirefoxDev':        { unitTest: {target: null, required: true  }},
   'IE9':               { unitTest: {target: null, required: false }},
   'IE10':              { unitTest: {target: null, required: true  }},
-  'IE11':              { unitTest: {target: 'SL', required: true  }},
+  'IE11':              { unitTest: {target: null, required: false  }},
   'Edge':              { unitTest: {target: 'SL', required: true  }},
   'Android4.1':        { unitTest: {target: null, required: false }},
   'Android4.2':        { unitTest: {target: null, required: false }},

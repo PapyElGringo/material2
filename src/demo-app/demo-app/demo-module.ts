@@ -12,6 +12,7 @@ import {NgModule} from '@angular/core';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {RouterModule} from '@angular/router';
 import {AutocompleteDemo} from '../autocomplete/autocomplete-demo';
+import {BottomSheetDemo, ExampleBottomSheet} from '../bottom-sheet/bottom-sheet-demo';
 import {BaselineDemo} from '../baseline/baseline-demo';
 import {ButtonToggleDemo} from '../button-toggle/button-toggle-demo';
 import {ButtonDemo} from '../button/button-demo';
@@ -32,10 +33,10 @@ import {ListDemo} from '../list/list-demo';
 import {LiveAnnouncerDemo} from '../live-announcer/live-announcer-demo';
 import {MenuDemo} from '../menu/menu-demo';
 import {
+  KeyboardTrackingPanel,
   OverlayDemo,
   RotiniPanel,
-  SpagettiPanel,
-  KeyboardTrackingPanel
+  SpagettiPanel
 } from '../overlay/overlay-demo';
 import {PlatformDemo} from '../platform/platform-demo';
 import {PortalDemo, ScienceJoke} from '../portal/portal-demo';
@@ -49,17 +50,19 @@ import {SlideToggleDemo} from '../slide-toggle/slide-toggle-demo';
 import {SliderDemo} from '../slider/slider-demo';
 import {SnackBarDemo} from '../snack-bar/snack-bar-demo';
 import {StepperDemo} from '../stepper/stepper-demo';
-import {PeopleDatabase} from '../table/people-database';
-import {TableDemo} from '../table/table-demo';
 import {ScreenTypeDemo} from '../screen-type/screen-type-demo';
 import {LayoutModule} from '@angular/cdk/layout';
-import {TableHeaderDemo} from '../table/table-header-demo';
-import {FoggyTabContent, RainyTabContent, SunnyTabContent, TabsDemo} from '../tabs/tabs-demo';
+import {
+  FoggyTabContent, RainyTabContent, SunnyTabContent, TabsDemo, Counter
+} from '../tabs/tabs-demo';
 import {ToolbarDemo} from '../toolbar/toolbar-demo';
 import {TooltipDemo} from '../tooltip/tooltip-demo';
 import {TypographyDemo} from '../typography/typography-demo';
 import {DemoApp, Home} from './demo-app';
 import {DEMO_APP_ROUTES} from './routes';
+import {TableDemoModule} from '../table/table-demo-module';
+import {BadgeDemo} from '../badge/badge-demo';
+import {TreeDemoModule} from '../tree/tree-demo-module';
 
 @NgModule({
   imports: [
@@ -69,12 +72,16 @@ import {DEMO_APP_ROUTES} from './routes';
     RouterModule.forChild(DEMO_APP_ROUTES),
     DemoMaterialModule,
     LayoutModule,
+    TableDemoModule,
+    TreeDemoModule,
   ],
   declarations: [
     AutocompleteDemo,
+    BottomSheetDemo,
     BaselineDemo,
     ButtonDemo,
     ButtonToggleDemo,
+    BadgeDemo,
     CardDemo,
     CheckboxDemo,
     ChipsDemo,
@@ -86,6 +93,7 @@ import {DEMO_APP_ROUTES} from './routes';
     ExpansionDemo,
     FocusOriginDemo,
     FoggyTabContent,
+    Counter,
     GesturesDemo,
     GridListDemo,
     Home,
@@ -117,16 +125,14 @@ import {DEMO_APP_ROUTES} from './routes';
     SpagettiPanel,
     StepperDemo,
     SunnyTabContent,
-    TableDemo,
-    TableHeaderDemo,
     TabsDemo,
     ToolbarDemo,
     TooltipDemo,
     TypographyDemo,
+    ExampleBottomSheet,
   ],
   providers: [
     {provide: OverlayContainer, useClass: FullscreenOverlayContainer},
-    PeopleDatabase
   ],
   entryComponents: [
     ContentElementDialog,
@@ -137,6 +143,7 @@ import {DEMO_APP_ROUTES} from './routes';
     RotiniPanel,
     ScienceJoke,
     SpagettiPanel,
+    ExampleBottomSheet,
   ],
 })
 export class DemoModule {}

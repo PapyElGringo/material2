@@ -5,13 +5,13 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
-
-import {Injectable, NgZone} from '@angular/core';
-import {CloseScrollStrategy} from './close-scroll-strategy';
+import {Injectable, NgZone, Inject} from '@angular/core';
+import {CloseScrollStrategy, CloseScrollStrategyConfig} from './close-scroll-strategy';
 import {NoopScrollStrategy} from './noop-scroll-strategy';
 import {BlockScrollStrategy} from './block-scroll-strategy';
 import {ScrollDispatcher} from '@angular/cdk/scrolling';
 import {ViewportRuler} from '@angular/cdk/scrolling';
+import {DOCUMENT} from '@angular/common';
 import {
   RepositionScrollStrategy,
   RepositionScrollStrategyConfig,
@@ -26,19 +26,28 @@ import {
  */
 @Injectable()
 export class ScrollStrategyOptions {
+  private _document: Document;
+
   constructor(
     private _scrollDispatcher: ScrollDispatcher,
     private _viewportRuler: ViewportRuler,
-    private _ngZone: NgZone) { }
+    private _ngZone: NgZone,
+    @Inject(DOCUMENT) document: any) {
+      this._document = document;
+    }
 
   /** Do nothing on scroll. */
   noop = () => new NoopScrollStrategy();
 
-  /** Close the overlay as soon as the user scrolls. */
-  close = () => new CloseScrollStrategy(this._scrollDispatcher, this._ngZone);
+  /**
+   * Close the overlay as soon as the user scrolls.
+   * @param config Configuration to be used inside the scroll strategy.
+   */
+  close = (config?: CloseScrollStrategyConfig) => new CloseScrollStrategy(this._scrollDispatcher,
+      this._ngZone, this._viewportRuler, config)
 
   /** Block scrolling. */
-  block = () => new BlockScrollStrategy(this._viewportRuler);
+  block = () => new BlockScrollStrategy(this._viewportRuler, this._document);
 
   /**
    * Update the overlay's position on scroll.

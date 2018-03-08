@@ -19,7 +19,7 @@
       <mat-cell *matCellDef="let element"> {{element.weight}} </mat-cell>
     </ng-container>
 
-    <!-- Color Column -->
+    <!-- Symbol Column -->
     <ng-container matColumnDef="symbol">
       <mat-header-cell *matHeaderCellDef> Symbol </mat-header-cell>
       <mat-cell *matCellDef="let element"> {{element.symbol}} </mat-cell>
@@ -31,6 +31,7 @@
 
   <mat-paginator #paginator
                  [pageSize]="10"
-                 [pageSizeOptions]="[5, 10, 20]">
+                 [pageSizeOptions]="[5, 10, 20]"
+                 [showFirstLastButtons]="true">
   </mat-paginator>
 </div>

@@ -59,4 +59,14 @@ export class ListDemo {
 
   thirdLine: boolean = false;
   infoClicked: boolean = false;
+  selectionListDisabled: boolean = false;
+
+  selectedOptions: string[] = ['apples'];
+  changeEventCount: number = 0;
+  modelChangeEventCount: number = 0;
+
+  onSelectedOptionsChange(values: string[]) {
+    this.selectedOptions = values;
+    this.modelChangeEventCount++;
+  }
 }

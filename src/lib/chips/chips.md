@@ -2,8 +2,6 @@
 
 <!-- example(chips-overview) -->
 
-_Note: chips are still early in their development and more features are being actively worked on._
-
 ```html
 <mat-chip-list>
   <mat-chip>Papadum</mat-chip>
@@ -43,10 +41,10 @@ An example of chip input placed outside the chip-list element.
 ```html
 <mat-form-field>
   <mat-chip-list #chipList>
-    <mat-chip>Chip 1<mat-chip>
-    <mat-chip>Chip 2<mat-chip>
+    <mat-chip>Chip 1</mat-chip>
+    <mat-chip>Chip 2</mat-chip>
   </mat-chip-list>
-  <input matChipInputFor="chipList">
+  <input [matChipInputFor]="chipList">
 </mat-form-field>
 ```
 

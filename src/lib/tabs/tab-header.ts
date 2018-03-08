@@ -7,8 +7,7 @@
  */
 
 import {Direction, Directionality} from '@angular/cdk/bidi';
-import {ENTER, LEFT_ARROW, RIGHT_ARROW, SPACE} from '@angular/cdk/keycodes';
-import {startWith} from 'rxjs/operators/startWith';
+import {ENTER, LEFT_ARROW, RIGHT_ARROW, SPACE, HOME, END} from '@angular/cdk/keycodes';
 import {
   AfterContentChecked,
   AfterContentInit,
@@ -68,7 +67,6 @@ export const _MatTabHeaderMixinBase = mixinDisableRipple(MatTabHeaderBase);
   styleUrls: ['tab-header.css'],
   inputs: ['disableRipple'],
   encapsulation: ViewEncapsulation.None,
-  preserveWhitespaces: false,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     'class': 'mat-tab-header',
@@ -127,10 +125,10 @@ export class MatTabHeader extends _MatTabHeaderMixinBase
   }
 
   /** Event emitted when the option is selected. */
-  @Output() selectFocusedIndex = new EventEmitter();
+  @Output() readonly selectFocusedIndex = new EventEmitter();
 
   /** Event emitted when a label is focused. */
-  @Output() indexFocused = new EventEmitter();
+  @Output() readonly indexFocused = new EventEmitter();
 
   constructor(private _elementRef: ElementRef,
               private _changeDetectorRef: ChangeDetectorRef,
@@ -174,6 +172,14 @@ export class MatTabHeader extends _MatTabHeaderMixinBase
       case LEFT_ARROW:
         this._focusPreviousTab();
         break;
+      case HOME:
+        this._focusFirstTab();
+        event.preventDefault();
+        break;
+      case END:
+        this._focusLastTab();
+        event.preventDefault();
+        break;
       case ENTER:
       case SPACE:
         this.selectFocusedIndex.emit(this.focusIndex);
@@ -188,11 +194,15 @@ export class MatTabHeader extends _MatTabHeaderMixinBase
   ngAfterContentInit() {
     const dirChange = this._dir ? this._dir.change : observableOf(null);
     const resize = this._viewportRuler.change(150);
-
-    this._realignInkBar = merge(dirChange, resize).pipe(startWith(null)).subscribe(() => {
+    const realign = () => {
       this._updatePagination();
       this._alignInkBarToSelectedTab();
-    });
+    };
+
+    // Defer the first call in order to allow for slower browsers to lay out the elements.
+    // This helps in cases where the user lands directly on a page with paginated tabs.
+    typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame(realign) : realign();
+    this._realignInkBar = merge(dirChange, resize).subscribe(realign);
   }
 
   ngOnDestroy() {
@@ -293,6 +303,26 @@ export class MatTabHeader extends _MatTabHeaderMixinBase
     this._moveFocus(this._getLayoutDirection() == 'ltr' ? -1 : 1);
   }
 
+  /** Focuses the first tab. */
+  private _focusFirstTab(): void {
+    for (let i = 0; i < this._labelWrappers.length; i++) {
+      if (this._isValidIndex(i)) {
+        this.focusIndex = i;
+        break;
+      }
+    }
+  }
+
+  /** Focuses the last tab. */
+  private _focusLastTab(): void {
+    for (let i = this._labelWrappers.length - 1; i > -1; i--) {
+      if (this._isValidIndex(i)) {
+        this.focusIndex = i;
+        break;
+      }
+    }
+  }
+
   /** The layout direction of the containing app. */
   _getLayoutDirection(): Direction {
     return this._dir && this._dir.value === 'rtl' ? 'rtl' : 'ltr';
@@ -307,6 +337,7 @@ export class MatTabHeader extends _MatTabHeaderMixinBase
   }
 
   /** Sets the distance in pixels that the tab header should be transformed in the X-axis. */
+  get scrollDistance(): number { return this._scrollDistance; }
   set scrollDistance(v: number) {
     this._scrollDistance = Math.max(0, Math.min(this._getMaxScrollDistance(), v));
 
@@ -315,7 +346,6 @@ export class MatTabHeader extends _MatTabHeaderMixinBase
     this._scrollDistanceChanged = true;
     this._checkScrollingControls();
   }
-  get scrollDistance(): number { return this._scrollDistance; }
 
   /**
    * Moves the tab list in the 'before' or 'after' direction (towards the beginning of the list or

@@ -41,7 +41,9 @@ let nextId = 0;
 
 /** A simple change event emitted on focus or selection changes. */
 export class MatTabChangeEvent {
+  /** Index of the currently-selected tab. */
   index: number;
+  /** Reference to the currently-selected tab. */
   tab: MatTab;
 }
 
@@ -67,7 +69,6 @@ export const _MatTabGroupMixinBase = mixinColor(mixinDisableRipple(MatTabGroupBa
   templateUrl: 'tab-group.html',
   styleUrls: ['tab-group.css'],
   encapsulation: ViewEncapsulation.None,
-  preserveWhitespaces: false,
   changeDetection: ChangeDetectionStrategy.OnPush,
   inputs: ['color', 'disableRipple'],
   host: {
@@ -101,17 +102,20 @@ export class MatTabGroup extends _MatTabGroupMixinBase implements AfterContentIn
   set dynamicHeight(value: boolean) { this._dynamicHeight = coerceBooleanProperty(value); }
   private _dynamicHeight: boolean = false;
 
-  /** @deprecated */
+  /**
+   * @deprecated
+   * @deletion-target 6.0.0
+   */
   @Input('mat-dynamic-height')
   get _dynamicHeightDeprecated(): boolean { return this._dynamicHeight; }
   set _dynamicHeightDeprecated(value: boolean) { this._dynamicHeight = value; }
 
   /** The index of the active tab. */
   @Input()
+  get selectedIndex(): number | null { return this._selectedIndex; }
   set selectedIndex(value: number | null) {
     this._indexToSelect = coerceNumberProperty(value, null);
   }
-  get selectedIndex(): number | null { return this._selectedIndex; }
   private _selectedIndex: number | null = null;
 
   /** Position of the tab header. */
@@ -134,20 +138,25 @@ export class MatTabGroup extends _MatTabGroupMixinBase implements AfterContentIn
   private _backgroundColor: ThemePalette;
 
   /** Output to enable support for two-way binding on `[(selectedIndex)]` */
-  @Output() selectedIndexChange: EventEmitter<number> = new EventEmitter();
+  @Output() readonly selectedIndexChange: EventEmitter<number> = new EventEmitter<number>();
 
   /** Event emitted when focus has changed within a tab group. */
-  @Output() focusChange: EventEmitter<MatTabChangeEvent> = new EventEmitter<MatTabChangeEvent>();
+  @Output() readonly focusChange: EventEmitter<MatTabChangeEvent> =
+      new EventEmitter<MatTabChangeEvent>();
+
+  /** Event emitted when the body animation has completed */
+  @Output() readonly animationDone: EventEmitter<void> = new EventEmitter<void>();
 
   /** Event emitted when the tab selection has changed. */
-  @Output() selectedTabChange: EventEmitter<MatTabChangeEvent> =
+  @Output() readonly selectedTabChange: EventEmitter<MatTabChangeEvent> =
       new EventEmitter<MatTabChangeEvent>(true);
 
   /**
    * Event emitted when the tab selection has changed.
    * @deprecated Use `selectedTabChange` instead.
+   * @deletion-target 6.0.0
    */
-  @Output() selectChange: EventEmitter<MatTabChangeEvent> = this.selectedTabChange;
+  @Output() readonly selectChange: EventEmitter<MatTabChangeEvent> = this.selectedTabChange;
 
   private _groupId: number;
 
@@ -163,7 +172,7 @@ export class MatTabGroup extends _MatTabGroupMixinBase implements AfterContentIn
    * each tab should be in according to the new selected index, and additionally we know how
    * a new selected tab should transition in (from the left or right).
    */
-  ngAfterContentChecked(): void {
+  ngAfterContentChecked() {
     // Clamp the next selected index to the boundsof 0 and the tabs length.
     // Note the `|| 0`, which ensures that values like NaN can't get through
     // and which would otherwise throw the component into an infinite loop
@@ -278,6 +287,7 @@ export class MatTabGroup extends _MatTabGroupMixinBase implements AfterContentIn
   _removeTabBodyWrapperHeight(): void {
     this._tabBodyWrapperHeight = this._tabBodyWrapper.nativeElement.clientHeight;
     this._tabBodyWrapper.nativeElement.style.height = '';
+    this.animationDone.emit();
   }
 
   /** Handle click events, setting new selected index if appropriate. */

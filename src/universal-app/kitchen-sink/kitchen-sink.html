@@ -103,6 +103,10 @@
 
 <h2>Input</h2>
 
+<mat-form-field floatLabel="never">
+  <input matInput placeholder="name">
+</mat-form-field>
+
 <mat-form-field>
   <input type="number" matInput placeholder="amount">
   <span matPrefix>$&nbsp;</span>
@@ -173,7 +177,10 @@
 
 <h2>Sidenav</h2>
 <mat-sidenav-container>
-  <mat-sidenav opened>On the side</mat-sidenav>
+  <mat-sidenav opened>
+    On the side
+    <button>Button for testing focus trapping</button>
+  </mat-sidenav>
   Main content
   <button>Click me</button>
 </mat-sidenav-container>
@@ -319,3 +326,9 @@
 <div cdkTrapFocus cdkTrapFocusAutoCapture>
   <button>Oh no, I'm trapped!</button>
 </div>
+
+<h2>Badge</h2>
+
+<button mat-raised-button matBadge="Clicked 1337 times">
+  Clicky thing
+</button>

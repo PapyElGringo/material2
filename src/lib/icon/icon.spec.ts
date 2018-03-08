@@ -14,7 +14,7 @@ function sortedClassNames(element: Element): string[] {
 }
 
 /**
- * Verifies that an element contains a single <svg> child element, and returns that child.
+ * Verifies that an element contains a single `<svg>` child element, and returns that child.
  */
 function verifyAndGetSingleSvgChild(element: SVGElement): SVGElement {
   expect(element.id).toBeFalsy();
@@ -25,7 +25,7 @@ function verifyAndGetSingleSvgChild(element: SVGElement): SVGElement {
 }
 
 /**
- * Verifies that an element contains a single <path> child element whose "id" attribute has
+ * Verifies that an element contains a single `<path>` child element whose "id" attribute has
  * the specified value.
  */
 function verifyPathChildElement(element: Element, attributeValue: string): void {
@@ -124,26 +124,26 @@ describe('MatIcon', () => {
       let fixture = TestBed.createComponent(IconFromSvgName);
       let svgElement: SVGElement;
       const testComponent = fixture.componentInstance;
-      const mdIconElement = fixture.debugElement.nativeElement.querySelector('mat-icon');
+      const iconElement = fixture.debugElement.nativeElement.querySelector('mat-icon');
 
       testComponent.iconName = 'fido';
       fixture.detectChanges();
       http.expectOne('dog.svg').flush(FAKE_SVGS.dog);
-      svgElement = verifyAndGetSingleSvgChild(mdIconElement);
+      svgElement = verifyAndGetSingleSvgChild(iconElement);
       verifyPathChildElement(svgElement, 'woof');
 
       // Change the icon, and the SVG element should be replaced.
       testComponent.iconName = 'fluffy';
       fixture.detectChanges();
       http.expectOne('cat.svg').flush(FAKE_SVGS.cat);
-      svgElement = verifyAndGetSingleSvgChild(mdIconElement);
+      svgElement = verifyAndGetSingleSvgChild(iconElement);
       verifyPathChildElement(svgElement, 'meow');
 
       // Using an icon from a previously loaded URL should not cause another HTTP request.
       testComponent.iconName = 'fido';
       fixture.detectChanges();
       http.expectNone('dog.svg');
-      svgElement = verifyAndGetSingleSvgChild(mdIconElement);
+      svgElement = verifyAndGetSingleSvgChild(iconElement);
       verifyPathChildElement(svgElement, 'woof');
 
       // Assert that a registered icon can be looked-up by url.
@@ -205,6 +205,25 @@ describe('MatIcon', () => {
       expect(svgChild.tagName.toLowerCase()).toBe('g');
       expect(svgChild.getAttribute('name')).toBe('cow');
       verifyPathChildElement(svgChild, 'moo');
+    });
+
+    it('should never parse the same icon set multiple times', () => {
+      // Normally we avoid spying on private methods like this, but the parsing is a private
+      // implementation detail that should not be exposed to the public API. This test, though,
+      // is important enough to warrant the brittle-ness that results.
+      spyOn(iconRegistry, '_svgElementFromString' as any).and.callThrough();
+
+      iconRegistry.addSvgIconSetInNamespace('farm', trust('farm-set-1.svg'));
+
+      // Requests for icons must be subscribed to in order for requests to be made.
+      iconRegistry.getNamedSvgIcon('pig', 'farm').subscribe(() => {});
+      iconRegistry.getNamedSvgIcon('cow', 'farm').subscribe(() => {});
+
+      http.expectOne('farm-set-1.svg').flush(FAKE_SVGS.farmSet1);
+
+      // _svgElementFromString is called once for each icon to create an empty SVG element
+      // and once to parse the full icon set.
+      expect((iconRegistry as any)._svgElementFromString).toHaveBeenCalledTimes(3);
     });
 
     it('should allow multiple icon sets in a namespace', () => {
@@ -358,10 +377,10 @@ describe('MatIcon', () => {
       iconRegistry.registerFontClassAlias('f1', 'font1');
       iconRegistry.registerFontClassAlias('f2');
 
-      let fixture = TestBed.createComponent(IconWithCustomFontCss);
-
+      const fixture = TestBed.createComponent(IconWithCustomFontCss);
       const testComponent = fixture.componentInstance;
       const matIconElement = fixture.debugElement.nativeElement.querySelector('mat-icon');
+
       testComponent.fontSet = 'f1';
       testComponent.fontIcon = 'house';
       fixture.detectChanges();
@@ -377,6 +396,45 @@ describe('MatIcon', () => {
       fixture.detectChanges();
       expect(sortedClassNames(matIconElement)).toEqual(['f3', 'mat-icon', 'tent']);
     });
+
+    it('should handle values with extraneous spaces being passed in to `fontSet`', () => {
+      const fixture = TestBed.createComponent(IconWithCustomFontCss);
+      const matIconElement = fixture.debugElement.nativeElement.querySelector('mat-icon');
+
+      expect(() => {
+        fixture.componentInstance.fontSet = 'font set';
+        fixture.detectChanges();
+      }).not.toThrow();
+
+      expect(sortedClassNames(matIconElement)).toEqual(['font', 'mat-icon']);
+
+      expect(() => {
+        fixture.componentInstance.fontSet = ' changed';
+        fixture.detectChanges();
+      }).not.toThrow();
+
+      expect(sortedClassNames(matIconElement)).toEqual(['changed', 'mat-icon']);
+    });
+
+    it('should handle values with extraneous spaces being passed in to `fontIcon`', () => {
+      const fixture = TestBed.createComponent(IconWithCustomFontCss);
+      const matIconElement = fixture.debugElement.nativeElement.querySelector('mat-icon');
+
+      expect(() => {
+        fixture.componentInstance.fontIcon = 'font icon';
+        fixture.detectChanges();
+      }).not.toThrow();
+
+      expect(sortedClassNames(matIconElement)).toEqual(['font', 'mat-icon', 'material-icons']);
+
+      expect(() => {
+        fixture.componentInstance.fontIcon = ' changed';
+        fixture.detectChanges();
+      }).not.toThrow();
+
+      expect(sortedClassNames(matIconElement)).toEqual(['changed', 'mat-icon', 'material-icons']);
+    });
+
   });
 
   /** Marks an svg icon url as explicitly trusted. */

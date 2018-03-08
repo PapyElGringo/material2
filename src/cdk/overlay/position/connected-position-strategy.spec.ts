@@ -1,13 +1,18 @@
 import {ElementRef} from '@angular/core';
 import {TestBed, inject} from '@angular/core/testing';
-import {ConnectedPositionStrategy} from './connected-position-strategy';
-import {ViewportRuler, VIEWPORT_RULER_PROVIDER} from '@angular/cdk/scrolling';
 import {OverlayPositionBuilder} from './overlay-position-builder';
-import {ConnectedOverlayPositionChange} from './connected-position';
 import {CdkScrollable} from '@angular/cdk/scrolling';
 import {Subscription} from 'rxjs/Subscription';
 import {ScrollDispatchModule} from '@angular/cdk/scrolling';
-import {OverlayRef} from '../overlay-ref';
+import {
+  OverlayModule,
+  Overlay,
+  OverlayRef,
+  OverlayContainer,
+  ConnectedPositionStrategy,
+  ConnectedOverlayPositionChange,
+  ConnectionPositionPair,
+} from '../index';
 
 
 // Default width and height of the overlay and origin panels throughout these tests.
@@ -19,17 +24,23 @@ const DEFAULT_WIDTH = 60;
 // for tests on CI (both SauceLabs and Browserstack).
 
 describe('ConnectedPositionStrategy', () => {
+  let positionBuilder: OverlayPositionBuilder;
+  let overlayContainer: OverlayContainer;
+  let overlayContainerElement: HTMLElement;
 
-  let viewportRuler: ViewportRuler;
+  beforeEach(() => {
+    TestBed.configureTestingModule({imports: [ScrollDispatchModule, OverlayModule]});
 
-  beforeEach(() => TestBed.configureTestingModule({
-    imports: [ScrollDispatchModule],
-    providers: [VIEWPORT_RULER_PROVIDER]
-  }));
+    inject([Overlay, OverlayContainer], (overlay: Overlay, oc: OverlayContainer) => {
+      positionBuilder = overlay.position();
+      overlayContainer = oc;
+      overlayContainerElement = oc.getContainerElement();
+    })();
+  });
 
-  beforeEach(inject([ViewportRuler], (_ruler: ViewportRuler) => {
-    viewportRuler = _ruler;
-  }));
+  afterEach(() => {
+    overlayContainer.ngOnDestroy();
+  });
 
   describe('with origin on document body', () => {
     const ORIGIN_HEIGHT = DEFAULT_HEIGHT;
@@ -39,10 +50,8 @@ describe('ConnectedPositionStrategy', () => {
 
     let originElement: HTMLElement;
     let overlayElement: HTMLElement;
-    let overlayContainerElement: HTMLElement;
     let strategy: ConnectedPositionStrategy;
     let fakeElementRef: ElementRef;
-    let positionBuilder: OverlayPositionBuilder;
 
     let originRect: ClientRect | null;
     let originCenterX: number | null;
@@ -51,19 +60,14 @@ describe('ConnectedPositionStrategy', () => {
     beforeEach(() => {
       // The origin and overlay elements need to be in the document body in order to have geometry.
       originElement = createPositionedBlockElement();
-      overlayContainerElement = createOverlayContainer();
       overlayElement = createPositionedBlockElement();
       document.body.appendChild(originElement);
-      document.body.appendChild(overlayContainerElement);
       overlayContainerElement.appendChild(overlayElement);
-
-      fakeElementRef = new FakeElementRef(originElement);
-      positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
+      fakeElementRef = new ElementRef(originElement);
     });
 
     afterEach(() => {
       document.body.removeChild(originElement);
-      document.body.removeChild(overlayContainerElement);
 
       // Reset the origin geometry after each test so we don't accidently keep state between tests.
       originRect = null;
@@ -177,8 +181,6 @@ describe('ConnectedPositionStrategy', () => {
       });
 
       it('should reposition the overlay if it would go off the bottom of the screen', () => {
-        positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
-
         originElement.style.bottom = '25px';
         originElement.style.left = '200px';
         originRect = originElement.getBoundingClientRect();
@@ -200,8 +202,6 @@ describe('ConnectedPositionStrategy', () => {
       });
 
       it('should reposition the overlay if it would go off the right of the screen', () => {
-        positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
-
         originElement.style.top = '200px';
         originElement.style.right = '25px';
         originRect = originElement.getBoundingClientRect();
@@ -224,8 +224,6 @@ describe('ConnectedPositionStrategy', () => {
       });
 
       it('should recalculate and set the last position with recalculateLastPosition()', () => {
-        positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
-
         // Push the trigger down so the overlay doesn't have room to open on the bottom.
         originElement.style.bottom = '25px';
         originRect = originElement.getBoundingClientRect();
@@ -254,8 +252,6 @@ describe('ConnectedPositionStrategy', () => {
       });
 
       it('should default to the initial position, if no positions fit in the viewport', () => {
-        positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
-
         // Make the origin element taller than the viewport.
         originElement.style.height = '1000px';
         originElement.style.top = '0';
@@ -353,7 +349,6 @@ describe('ConnectedPositionStrategy', () => {
     });
 
     it('should emit onPositionChange event when position changes', () => {
-      positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
       originElement.style.top = '200px';
       originElement.style.right = '25px';
 
@@ -390,7 +385,6 @@ describe('ConnectedPositionStrategy', () => {
     });
 
     it('should emit the onPositionChange event even if none of the positions fit', () => {
-      positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
       originElement.style.bottom = '25px';
       originElement.style.right = '25px';
 
@@ -413,9 +407,23 @@ describe('ConnectedPositionStrategy', () => {
       subscription.unsubscribe();
     });
 
-    it('should pick the fallback position that shows the largest area of the element', () => {
-      positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
+    it('should complete the onPositionChange stream on dispose', () => {
+      strategy = positionBuilder.connectedTo(
+          fakeElementRef,
+          {originX: 'end', originY: 'bottom'},
+          {overlayX: 'start', overlayY: 'top'});
 
+      const completeHandler = jasmine.createSpy('complete handler');
+
+      strategy.onPositionChange.subscribe(undefined, undefined, completeHandler);
+      strategy.attach(fakeOverlayRef(overlayElement));
+      strategy.apply();
+      strategy.dispose();
+
+      expect(completeHandler).toHaveBeenCalled();
+    });
+
+    it('should pick the fallback position that shows the largest area of the element', () => {
       originElement.style.top = '200px';
       originElement.style.right = '25px';
       originRect = originElement.getBoundingClientRect();
@@ -441,7 +449,6 @@ describe('ConnectedPositionStrategy', () => {
     });
 
     it('should re-use the preferred position when re-applying while locked in', () => {
-      positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
       strategy = positionBuilder.connectedTo(
           fakeElementRef,
           {originX: 'end', originY: 'center'},
@@ -554,12 +561,37 @@ describe('ConnectedPositionStrategy', () => {
         expect(Math.floor(overlayRect.top)).toBe(Math.floor(originRect!.top));
         expect(Math.floor(overlayRect.left)).toBe(Math.floor(originRect!.left));
       });
+
+      it('should allow for the positions to be updated after init', () => {
+        strategy = positionBuilder.connectedTo(
+            fakeElementRef,
+            {originX: 'start', originY: 'bottom'},
+            {overlayX: 'start', overlayY: 'top'});
+
+        strategy.attach(fakeOverlayRef(overlayElement));
+        strategy.apply();
+
+        let overlayRect = overlayElement.getBoundingClientRect();
+        expect(Math.floor(overlayRect.top)).toBe(Math.floor(originRect!.bottom));
+        expect(Math.floor(overlayRect.left)).toBe(Math.floor(originRect!.left));
+
+        strategy.withPositions([new ConnectionPositionPair(
+          {originX: 'start', originY: 'bottom'},
+          {overlayX: 'end', overlayY: 'top'}
+        )]);
+
+        strategy.apply();
+
+        overlayRect = overlayElement.getBoundingClientRect();
+        expect(Math.floor(overlayRect.top)).toBe(Math.floor(originRect!.bottom));
+        expect(Math.floor(overlayRect.right)).toBe(Math.floor(originRect!.left));
+      });
+
     }
   });
 
   describe('onPositionChange with scrollable view properties', () => {
     let overlayElement: HTMLElement;
-    let overlayContainerElement: HTMLElement;
     let strategy: ConnectedPositionStrategy;
 
     let scrollable: HTMLDivElement;
@@ -569,9 +601,7 @@ describe('ConnectedPositionStrategy', () => {
 
     beforeEach(() => {
       // Set up the overlay
-      overlayContainerElement = createOverlayContainer();
       overlayElement = createPositionedBlockElement();
-      document.body.appendChild(overlayContainerElement);
       overlayContainerElement.appendChild(overlayElement);
 
       // Set up the origin
@@ -584,15 +614,14 @@ describe('ConnectedPositionStrategy', () => {
       scrollable.appendChild(originElement);
 
       // Create a strategy with knowledge of the scrollable container
-      let positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
-      let fakeElementRef = new FakeElementRef(originElement);
+      let fakeElementRef = new ElementRef(originElement);
       strategy = positionBuilder.connectedTo(
           fakeElementRef,
           {originX: 'start', originY: 'bottom'},
           {overlayX: 'start', overlayY: 'top'});
 
       strategy.withScrollableContainers([
-          new CdkScrollable(new FakeElementRef(scrollable), null!, null!)]);
+          new CdkScrollable(new ElementRef(scrollable), null!, null!)]);
       strategy.attach(fakeOverlayRef(overlayElement));
       positionChangeHandler = jasmine.createSpy('positionChangeHandler');
       onPositionChangeSubscription = strategy.onPositionChange.subscribe(positionChangeHandler);
@@ -601,7 +630,6 @@ describe('ConnectedPositionStrategy', () => {
     afterEach(() => {
       onPositionChangeSubscription.unsubscribe();
       document.body.removeChild(scrollable);
-      document.body.removeChild(overlayContainerElement);
     });
 
     it('should not have origin or overlay clipped or out of view without scroll', () => {
@@ -663,27 +691,20 @@ describe('ConnectedPositionStrategy', () => {
   describe('positioning properties', () => {
     let originElement: HTMLElement;
     let overlayElement: HTMLElement;
-    let overlayContainerElement: HTMLElement;
     let strategy: ConnectedPositionStrategy;
     let fakeElementRef: ElementRef;
-    let positionBuilder: OverlayPositionBuilder;
 
     beforeEach(() => {
       // The origin and overlay elements need to be in the document body in order to have geometry.
       originElement = createPositionedBlockElement();
-      overlayContainerElement = createOverlayContainer();
       overlayElement = createPositionedBlockElement();
       document.body.appendChild(originElement);
-      document.body.appendChild(overlayContainerElement);
       overlayContainerElement.appendChild(overlayElement);
-
-      fakeElementRef = new FakeElementRef(originElement);
-      positionBuilder = new OverlayPositionBuilder(viewportRuler, document);
+      fakeElementRef = new ElementRef(originElement);
     });
 
     afterEach(() => {
       document.body.removeChild(originElement);
-      document.body.removeChild(overlayContainerElement);
     });
 
     describe('in ltr', () => {
@@ -772,6 +793,60 @@ describe('ConnectedPositionStrategy', () => {
 
   });
 
+  describe('validations', () => {
+    let overlayElement: HTMLElement;
+    let originElement: HTMLElement;
+    let strategy: ConnectedPositionStrategy;
+
+    beforeEach(() => {
+      overlayElement = createPositionedBlockElement();
+      overlayContainerElement.appendChild(overlayElement);
+      originElement = createBlockElement();
+
+      strategy = positionBuilder.connectedTo(
+          new ElementRef(originElement),
+          {originX: 'start', originY: 'bottom'},
+          {overlayX: 'start', overlayY: 'top'});
+      strategy.attach(fakeOverlayRef(overlayElement));
+    });
+
+    afterEach(() => {
+      strategy.dispose();
+    });
+
+    it('should throw when attaching without any positions', () => {
+      strategy.withPositions([]);
+      expect(() => strategy.apply()).toThrow();
+    });
+
+    it('should throw when passing in something that is missing a connection point', () => {
+      strategy.withPositions([{originY: 'top', overlayX: 'start', overlayY: 'top'} as any]);
+      expect(() => strategy.apply()).toThrow();
+    });
+
+    it('should throw when passing in something that has an invalid X position', () => {
+      strategy.withPositions([{
+        originX: 'left',
+        originY: 'top',
+        overlayX: 'left',
+        overlayY: 'top'
+      } as any]);
+
+      expect(() => strategy.apply()).toThrow();
+    });
+
+    it('should throw when passing in something that has an invalid Y position', () => {
+      strategy.withPositions([{
+        originX: 'start',
+        originY: 'middle',
+        overlayX: 'start',
+        overlayY: 'middle'
+      } as any]);
+
+      expect(() => strategy.apply()).toThrow();
+    });
+  });
+
 });
 
 /** Creates an absolutely positioned, display: block element with a default size. */
@@ -791,13 +866,6 @@ function createBlockElement() {
   return element;
 }
 
-/** Creates the wrapper for all of the overlays. */
-function createOverlayContainer() {
-  let element = document.createElement('div');
-  element.classList.add('cdk-overlay-container');
-  return element;
-}
-
 /** Creates an overflow container with a set height and width with margin. */
 function createOverflowContainerElement() {
   let element = document.createElement('div');
@@ -807,12 +875,6 @@ function createOverflowContainerElement() {
   element.style.width = '300px';
   element.style.margin = '100px';
   return element;
-}
-
-
-/** Fake implementation of ElementRef that is just a simple container for nativeElement. */
-class FakeElementRef implements ElementRef {
-  constructor(public nativeElement: HTMLElement) { }
 }
 
 function fakeOverlayRef(overlayElement: HTMLElement) {

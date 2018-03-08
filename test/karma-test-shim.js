@@ -50,6 +50,9 @@ System.config({
     // Path mappings for local packages that can be imported inside of tests.
     // TODO(devversion): replace once the index.ts file for the Material package has been added.
     '@angular/material': 'dist/packages/material/public-api.js',
+    '@angular/material-experimental': 'dist/packages/material-experimental/index.js',
+    '@angular/cdk-experimental': 'dist/packages/cdk-experimental/index.js',
+
     '@angular/cdk': 'dist/packages/cdk/index.js',
     '@angular/cdk/a11y': 'dist/packages/cdk/a11y/index.js',
     '@angular/cdk/accordion': 'dist/packages/cdk/accordion/index.js',
@@ -66,8 +69,11 @@ System.config({
     '@angular/cdk/stepper': 'dist/packages/cdk/stepper/index.js',
     '@angular/cdk/table': 'dist/packages/cdk/table/index.js',
     '@angular/cdk/testing': 'dist/packages/cdk/testing/index.js',
+    '@angular/cdk/tree': 'dist/packages/cdk/tree/index.js',
 
     '@angular/material/autocomplete': 'dist/packages/material/autocomplete/index.js',
+    '@angular/material/badge': 'dist/packages/material/badge/index.js',
+    '@angular/material/bottom-sheet': 'dist/packages/material/bottom-sheet/index.js',
     '@angular/material/button': 'dist/packages/material/button/index.js',
     '@angular/material/button-toggle': 'dist/packages/material/button-toggle/index.js',
     '@angular/material/card': 'dist/packages/material/card/index.js',
@@ -76,6 +82,7 @@ System.config({
     '@angular/material/core': 'dist/packages/material/core/index.js',
     '@angular/material/datepicker': 'dist/packages/material/datepicker/index.js',
     '@angular/material/dialog': 'dist/packages/material/dialog/index.js',
+    '@angular/material/divider': 'dist/packages/material/divider/index.js',
     '@angular/material/expansion': 'dist/packages/material/expansion/index.js',
     '@angular/material/form-field': 'dist/packages/material/form-field/index.js',
     '@angular/material/grid-list': 'dist/packages/material/grid-list/index.js',
@@ -98,6 +105,7 @@ System.config({
     '@angular/material/tabs': 'dist/packages/material/tabs/index.js',
     '@angular/material/toolbar': 'dist/packages/material/toolbar/index.js',
     '@angular/material/tooltip': 'dist/packages/material/tooltip/index.js',
+    '@angular/material/tree': 'dist/packages/material/tree/index.js',
   },
   packages: {
     // Thirdparty barrels.
@@ -112,9 +120,15 @@ System.config({
 });
 
 // Configure the Angular test bed and run all specs once configured.
- configureTestBed()
+configureTestBed()
   .then(runMaterialSpecs)
-  .then(__karma__.start, __karma__.error);
+  .then(__karma__.start, function(error) {
+    // Passing in the error object directly to Karma won't log out the stack trace and
+    // passing the `originalErr` doesn't work correctly either. We have to log out the
+    // stack trace so we can actually debug errors before the tests have started.
+    console.error(error.originalErr.stack);
+    __karma__.error(error);
+  });
 
 
 /** Runs the Angular Material specs in Karma. */
